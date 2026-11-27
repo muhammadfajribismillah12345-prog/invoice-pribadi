@@ -110,6 +110,22 @@ table.daftar tr:hover td{background:#fafbfc}
 .kertas.T80 .ttd,.kertas.T58 .ttd{display:none}
 .kertas.T80 .terbilang,.kertas.T58 .terbilang{background:none;padding:2px;text-align:left}
 
+/* ===== Layar masuk ===== */
+#gerbang{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+body:not(.terkunci) #gerbang{display:none}
+body.terkunci>header,body.terkunci>main,body.terkunci>#peringatan{display:none}
+#formMasuk{width:100%;max-width:380px;margin:0;padding:26px}
+#formMasuk h1{font-size:22px;margin:0 0 4px}#formMasuk h1 span{color:var(--aksen)}
+#formMasuk p{color:var(--redup);margin:0 0 18px}
+#formMasuk .btn{width:100%;margin-top:6px}
+#mGalat,#aGalat{color:var(--bahaya);font-weight:600;min-height:20px;margin:4px 0}
+#btnLupa{border:0;background:none;color:var(--redup);font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;margin-top:14px;padding:0}
+.sandi{position:relative}
+.sandi input{padding-right:42px}
+.sandi button{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;padding:6px;cursor:pointer;color:var(--redup);display:flex;border-radius:6px}
+.sandi button:hover{color:var(--aksen);background:var(--bg)}
+.akun{margin-left:auto;display:flex;align-items:center;gap:10px;color:var(--redup);font-weight:600}
+
 #cetak{display:none}
 @media print{
   body{background:#fff}
@@ -120,7 +136,19 @@ table.daftar tr:hover td{background:#fafbfc}
 </style>
 <style id="gayaHalaman"></style>
 </head>
-<body>
+<body class="terkunci">
+<div id="gerbang">
+  <form id="formMasuk" class="kartu" autocomplete="off">
+    <h1>Invoice <span>Pribadi</span></h1>
+    <p id="mJudul">Masuk sebagai admin</p>
+    <div class="baris"><div><label for="mNama">Username</label><input id="mNama" autocapitalize="none" spellcheck="false"></div></div>
+    <div class="baris"><div><label for="mSandi">Password</label><div class="sandi"><input type="password" id="mSandi"></div></div></div>
+    <div class="baris" id="mUlangBaris"><div><label for="mUlang">Ulangi password</label><div class="sandi"><input type="password" id="mUlang"></div></div></div>
+    <div id="mGalat" role="alert"></div>
+    <button class="btn utama besar" id="mTombol">Masuk</button>
+    <button type="button" id="btnLupa">Lupa password?</button>
+  </form>
+</div>
 <header class="app">
   <h1>Invoice <span>Pribadi</span></h1>
   <nav>
@@ -128,6 +156,7 @@ table.daftar tr:hover td{background:#fafbfc}
     <button data-hal="riwayat">Riwayat</button>
     <button data-hal="atur">Pengaturan</button>
   </nav>
+  <div class="akun"><span id="siapa"></span><button class="btn kecil" id="btnKeluar">Keluar</button></div>
 </header>
 
 <div id="peringatan" hidden style="background:#fef3c7;color:#92400e;padding:10px 20px;font-weight:600">Tampilan ini hanya pratinjau: data tidak tersimpan permanen dan cetak mungkin tidak jalan. Buka lewat berkas "Buka Invoice.bat" (atau klik dua kali index.html) di Chrome/Edge.</div>
@@ -266,6 +295,20 @@ table.daftar tr:hover td{background:#fafbfc}
     <div class="baris"><div><label>Metode bayar (pisahkan dengan koma)</label><input data-s="metode"></div></div>
     <div class="baris"><div><label>Daftar barang/jasa langganan — satu per baris: <b>Nama | Harga</b></label><textarea data-s="katalog" style="min-height:90px" placeholder="Jasa desain logo | 250000&#10;Cetak banner 1x1 m | 35000"></textarea></div></div>
     <label class="cek"><input type="checkbox" data-s="autoCetak">Langsung buka dialog cetak setelah pembayaran disimpan</label>
+   </div>
+
+   <div class="kartu">
+    <h2>Akun Admin</h2>
+    <div class="baris b2">
+      <div><label for="aNama">Username</label><input id="aNama" autocapitalize="none" spellcheck="false"></div>
+      <div><label for="aLama">Password saat ini</label><div class="sandi"><input type="password" id="aLama" autocomplete="off"></div></div>
+    </div>
+    <div class="baris b2">
+      <div><label for="aBaru">Password baru (kosongkan bila tidak diganti)</label><div class="sandi"><input type="password" id="aBaru" autocomplete="new-password"></div></div>
+      <div><label for="aUlang">Ulangi password baru</label><div class="sandi"><input type="password" id="aUlang" autocomplete="new-password"></div></div>
+    </div>
+    <div id="aGalat" role="alert"></div>
+    <button class="btn" id="btnAkun">Simpan akun</button>
    </div>
 
    <div class="kartu">
@@ -494,7 +537,7 @@ function simpan(lalucetak){
 $('#btnSimpanCetak').onclick = () => simpan(true);
 $('#btnSimpan').onclick = () => simpan(false);
 $('#btnBersih').onclick = () => { editId = null; draf = drafBaru(); isiForm(); };
-document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter' && $('#hal-baru').classList.contains('aktif')) simpan(true); });
+document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter' && !document.body.classList.contains('terkunci') && $('#hal-baru').classList.contains('aktif')) simpan(true); });
 
 /* ---------- Riwayat ---------- */
 function renderRiwayat(){
@@ -592,8 +635,90 @@ function bukaHal(h){
 $$('nav button').forEach(b => b.onclick = () => bukaHal(b.dataset.hal));
 window.addEventListener('resize', () => { if ($('#hal-baru').classList.contains('aktif')) segarkan(); else if ($('#hal-atur').classList.contains('aktif')) isiAtur(); });
 
+/* ---------- Akun admin & layar masuk ---------- */
+const MATA = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const MATA_CORET = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 5.2A9.6 9.6 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.6 3.6M6.5 6.6C3.6 8.5 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
+$$('.sandi').forEach(w => {
+  const inp = w.querySelector('input'), b = document.createElement('button');
+  b.type = 'button'; b.tabIndex = -1;
+  const atur = () => { const tampak = inp.type === 'text'; b.innerHTML = tampak ? MATA_CORET : MATA; b.title = tampak ? 'Sembunyikan password' : 'Tampilkan password'; b.setAttribute('aria-label', b.title); };
+  b.onclick = () => { inp.type = inp.type === 'password' ? 'text' : 'password'; atur(); inp.focus(); };
+  atur(); w.appendChild(b);
+});
+const tutupSandi = () => $$('.sandi input').forEach(i => { i.value = ''; if (i.type === 'text') i.nextElementSibling.click(); });
+
+let AKUN = muat('inv.akun', null), gagalMasuk = 0, kunciSampai = 0;
+const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+async function acak(sandi, garam, algo){
+  if (algo === 'pbkdf2') {
+    const e = new TextEncoder(), k = await crypto.subtle.importKey('raw', e.encode(sandi), 'PBKDF2', false, ['deriveBits']);
+    return hex(await crypto.subtle.deriveBits({name:'PBKDF2', hash:'SHA-256', salt:e.encode(garam), iterations:200000}, k, 256));
+  }
+  let a = 0x811c9dc5, b = 0x1b873593; // cadangan bila browser tidak menyediakan crypto.subtle
+  for (let r = 0; r < 2000; r++) for (const c of garam + sandi + r) { a = Math.imul(a ^ c.charCodeAt(0), 16777619); b = Math.imul(b + a, 0x85ebca6b) ^ (a >>> 13); }
+  return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
+}
+async function buatAkun(nama, sandi){
+  const algo = window.crypto && crypto.subtle ? 'pbkdf2' : 'sederhana';
+  const garam = hex(crypto.getRandomValues(new Uint8Array(16)));
+  AKUN = {nama, garam, algo, hash: await acak(sandi, garam, algo)};
+  tulis('inv.akun', AKUN);
+}
+const cocok = async sandi => (await acak(sandi, AKUN.garam, AKUN.algo)) === AKUN.hash;
+const sesi = v => { try { v === undefined ? 0 : v ? sessionStorage.setItem('inv.masuk', '1') : sessionStorage.removeItem('inv.masuk'); return sessionStorage.getItem('inv.masuk') === '1'; } catch { return false; } };
+
+function tampilGerbang(){
+  document.body.classList.add('terkunci'); tutupSandi();
+  const daftar = !AKUN;
+  $('#mJudul').textContent = daftar ? 'Buat akun admin untuk mengunci situs ini di perangkat ini.' : 'Masuk sebagai admin';
+  $('#mUlangBaris').style.display = daftar ? '' : 'none';
+  $('#mTombol').textContent = daftar ? 'Buat akun & masuk' : 'Masuk';
+  $('#btnLupa').style.display = daftar ? 'none' : '';
+  $('#mGalat').textContent = ''; $('#mNama').value = ''; $('#mNama').focus();
+}
+function bukaKunci(){
+  document.body.classList.remove('terkunci'); sesi(true); tutupSandi();
+  $('#siapa').textContent = AKUN.nama; $('#aNama').value = AKUN.nama;
+  bukaHal('baru');
+}
+$('#formMasuk').onsubmit = async e => {
+  e.preventDefault();
+  const nama = $('#mNama').value.trim(), sandi = $('#mSandi').value, galat = t => { $('#mGalat').textContent = t; };
+  if (!AKUN) {
+    if (nama.length < 3) return galat('Username minimal 3 karakter.');
+    if (sandi.length < 6) return galat('Password minimal 6 karakter.');
+    if (sandi !== $('#mUlang').value) return galat('Ulangi password belum sama.');
+    await buatAkun(nama, sandi); return bukaKunci();
+  }
+  const tunggu = Math.ceil((kunciSampai - Date.now()) / 1000);
+  if (tunggu > 0) return galat(`Terlalu banyak percobaan. Coba lagi dalam ${tunggu} detik.`);
+  $('#mTombol').disabled = true;
+  const benar = nama.toLowerCase() === AKUN.nama.toLowerCase() & await cocok(sandi);
+  $('#mTombol').disabled = false;
+  if (benar) { gagalMasuk = 0; return bukaKunci(); }
+  if (++gagalMasuk >= 5) { kunciSampai = Date.now() + 30000; gagalMasuk = 0; }
+  galat('Username atau password salah.'); $('#mSandi').select();
+};
+$('#btnLupa').onclick = () => {
+  const j = prompt('Password tidak bisa dipulihkan. Satu-satunya jalan adalah mengatur ulang, yang MENGHAPUS akun, semua invoice, dan pengaturan di browser ini.\n\nBila punya berkas cadangan, data bisa dipulihkan setelah membuat akun baru.\n\nKetik HAPUS untuk mengatur ulang:');
+  if (j !== 'HAPUS') return;
+  try { ['inv.akun', 'inv.data', 'inv.atur'].forEach(k => localStorage.removeItem(k)); } catch {}
+  sesi(false); location.reload();
+};
+$('#btnKeluar').onclick = () => { sesi(false); tampilGerbang(); };
+$('#btnAkun').onclick = async () => {
+  const nama = $('#aNama').value.trim(), baru = $('#aBaru').value, galat = t => { $('#aGalat').textContent = t; };
+  if (nama.length < 3) return galat('Username minimal 3 karakter.');
+  if (!await cocok($('#aLama').value)) return galat('Password saat ini salah.');
+  if (baru && baru.length < 6) return galat('Password baru minimal 6 karakter.');
+  if (baru !== $('#aUlang').value) return galat('Ulangi password baru belum sama.');
+  if (baru) await buatAkun(nama, baru); else { AKUN.nama = nama; tulis('inv.akun', AKUN); }
+  galat(''); tutupSandi(); $('#siapa').textContent = AKUN.nama; toast('Akun admin diperbarui.');
+};
+
 if (!BISA_SIMPAN) $('#peringatan').hidden = false;
 draf = drafBaru(); isiAtur(); isiForm();
+if (AKUN && sesi()) bukaKunci(); else tampilGerbang();
 </script>
 </body>
 </html>
