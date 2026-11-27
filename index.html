@@ -110,6 +110,12 @@ table.daftar tr:hover td{background:#fafbfc}
 .kertas.T80 .ttd,.kertas.T58 .ttd{display:none}
 .kertas.T80 .terbilang,.kertas.T58 .terbilang{background:none;padding:2px;text-align:left}
 
+.grafik{display:flex;align-items:flex-end;gap:10px;height:190px}
+.grafik>div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.grafik i{display:block;width:100%;max-width:56px;background:var(--aksen);border-radius:6px 6px 0 0;min-height:2px}
+.grafik small{font-size:11px;color:var(--redup);white-space:nowrap;margin-bottom:4px}
+.grafik b{font-size:12px;margin-top:6px}
+.selesai td:first-child{text-decoration:line-through;color:var(--redup)}
 /* ===== Layar masuk ===== */
 #gerbang{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
 body:not(.terkunci) #gerbang{display:none}
@@ -152,7 +158,8 @@ body.terkunci>header,body.terkunci>main,body.terkunci>#peringatan{display:none}
 <header class="app">
   <h1>Invoice <span>Pribadi</span></h1>
   <nav>
-    <button data-hal="baru" class="aktif">+ Pembayaran Baru</button>
+    <button data-hal="dasbor" class="aktif">Dashboard</button>
+    <button data-hal="baru">+ Pembayaran Baru</button>
     <button data-hal="riwayat">Riwayat</button>
     <button data-hal="atur">Pengaturan</button>
   </nav>
@@ -162,7 +169,39 @@ body.terkunci>header,body.terkunci>main,body.terkunci>#peringatan{display:none}
 <div id="peringatan" hidden style="background:#fef3c7;color:#92400e;padding:10px 20px;font-weight:600">Tampilan ini hanya pratinjau: data tidak tersimpan permanen dan cetak mungkin tidak jalan. Buka lewat berkas "Buka Invoice.bat" (atau klik dua kali index.html) di Chrome/Edge.</div>
 <main>
 <!-- ================= PEMBAYARAN BARU ================= -->
-<section class="hal aktif" id="hal-baru">
+<section class="hal aktif" id="hal-dasbor">
+  <div class="stat" id="dStat"></div>
+  <div class="dua">
+    <div>
+      <div class="kartu">
+        <h2>Pemasukan 6 Bulan Terakhir</h2>
+        <div class="grafik" id="dGrafik"></div>
+      </div>
+      <div class="kartu">
+        <h2>Invoice Belum Dibayar</h2>
+        <div style="overflow-x:auto"><table class="daftar"><tbody id="dBelum"></tbody></table></div>
+        <div class="kosong" id="dBelumKosong" style="padding:18px 10px">Tidak ada tagihan tertunggak.</div>
+      </div>
+    </div>
+    <div class="kartu">
+      <h2>Proyek</h2>
+      <form id="formProyek">
+        <div class="baris b2">
+          <div><label for="pNama">Nama proyek</label><input id="pNama" placeholder="Mis. Desain logo toko"></div>
+          <div><label for="pKlien">Klien</label><input id="pKlien" list="dlPelanggan" autocomplete="off"></div>
+        </div>
+        <div class="baris b2" style="align-items:end">
+          <div><label for="pTenggat">Tenggat (opsional)</label><input type="date" id="pTenggat"></div>
+          <div><button class="btn utama">+ Tambah proyek</button></div>
+        </div>
+      </form>
+      <table class="daftar"><tbody id="dProyek"></tbody></table>
+      <div class="kosong" id="dProyekKosong" style="padding:18px 10px">Belum ada proyek. Tambahkan proyek yang sedang dikerjakan di atas.</div>
+    </div>
+  </div>
+</section>
+
+<section class="hal" id="hal-baru">
  <div class="dua">
   <div>
    <div class="kartu">
@@ -372,6 +411,8 @@ const muat = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 let S = Object.assign({}, BAWAAN, muat('inv.atur', {}));
 S.tampil = Object.assign({}, BAWAAN.tampil, S.tampil);
 let DATA = muat('inv.data', []);
+let PROYEK = muat('inv.proyek', []);
+const simpanProyek = () => tulis('inv.proyek', PROYEK);
 let BISA_SIMPAN = true;
 try { localStorage.setItem('inv.uji', '1'); localStorage.removeItem('inv.uji'); } catch { BISA_SIMPAN = false; }
 const tulis = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { BISA_SIMPAN = false; $('#peringatan').hidden = false; } };
@@ -561,7 +602,54 @@ function renderRiwayat(){
     <div><small>Total diterima</small><b>${rp(masuk)}</b></div><div><small>Belum tertagih</small><b style="color:${piutang ? 'var(--bahaya)' : 'inherit'}">${rp(piutang)}</b></div>`;
 }
 $('#cari').oninput = $('#saringStatus').onchange = renderRiwayat;
-$('#tbRiwayat').addEventListener('click', e => {
+/* ---------- Dashboard ---------- */
+const ringkas = n => n >= 1e9 ? (n/1e9).toLocaleString('id-ID', {maximumFractionDigits:1}) + ' M' : n >= 1e6 ? (n/1e6).toLocaleString('id-ID', {maximumFractionDigits:1}) + ' jt' : n >= 1e3 ? Math.round(n/1e3) + ' rb' : String(Math.round(n));
+function renderDasbor(){
+  const bln = hariIni().slice(0, 7), perBulan = {}, klien = new Set(), belum = [];
+  let masuk = 0, piutang = 0;
+  DATA.forEach(d => { const h = hitung(d), b = d.tanggal.slice(0, 7);
+    masuk += h.dibayar; perBulan[b] = (perBulan[b] || 0) + h.dibayar;
+    if (h.sisa > 0) { piutang += h.sisa; belum.push([d, h]); }
+    if (d.nama) klien.add(d.nama.toLowerCase()); });
+  PROYEK.forEach(p => p.klien && klien.add(p.klien.toLowerCase()));
+  const jalan = PROYEK.filter(p => !p.selesai);
+  $('#dStat').innerHTML = `<div><small>Pemasukan bulan ini</small><b>${rp(perBulan[bln] || 0)}</b><small>Total ${rp(masuk)}</small></div>
+    <div><small>Jumlah klien</small><b>${klien.size}</b><small>dari invoice &amp; proyek</small></div>
+    <div><small>Proyek berjalan</small><b>${jalan.length}</b><small>${PROYEK.length - jalan.length} selesai</small></div>
+    <div><small>Invoice belum dibayar</small><b style="color:${belum.length ? 'var(--bahaya)' : 'inherit'}">${belum.length}</b><small>Tertunggak ${rp(piutang)}</small></div>`;
+  const [y, m] = bln.split('-').map(Number), bulan = [];
+  for (let i = 5; i >= 0; i--) { const t = new Date(y, m - 1 - i, 1); bulan.push([t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0'), t.toLocaleDateString('id-ID', {month:'short'})]); }
+  const maks = Math.max(1, ...bulan.map(([k]) => perBulan[k] || 0));
+  $('#dGrafik').innerHTML = bulan.map(([k, l]) => { const v = perBulan[k] || 0; return `<div title="${l}: ${rp(v)}"><small>${v ? ringkas(v) : ''}</small><i style="height:${Math.round(v / maks * 100)}%"></i><b>${l}</b></div>`; }).join('');
+  $('#dBelum').innerHTML = belum.map(([d, h]) => `<tr data-id="${d.id}"><td><b>${esc(d.nomor)}</b><br><small>${esc(d.nama || '—')}${d.tempo ? ' · tempo ' + tgl(d.tempo) : ''}</small></td>
+    <td class="kanan"><b style="color:var(--bahaya)">${rp(h.sisa)}</b></td>
+    <td><div class="aksi" style="justify-content:flex-end"><button class="btn kecil" data-a="cetak">Cetak</button><button class="btn kecil utama" data-a="lunas">Tandai lunas</button></div></td></tr>`).join('');
+  $('#dBelumKosong').style.display = belum.length ? 'none' : 'block';
+  const urut = [...PROYEK].sort((a, b) => a.selesai - b.selesai);
+  $('#dProyek').innerHTML = urut.map(p => `<tr data-id="${p.id}" class="${p.selesai ? 'selesai' : ''}"><td><b>${esc(p.nama)}</b><br><small>${esc(p.klien || '—')}${p.tenggat ? ` · <span style="color:${!p.selesai && p.tenggat < hariIni() ? 'var(--bahaya)' : 'inherit'}">tenggat ${tgl(p.tenggat)}</span>` : ''}</small></td>
+    <td><span class="lencana ${p.selesai ? 'lunas' : 'dp'}">${p.selesai ? 'Selesai' : 'Berjalan'}</span></td>
+    <td><div class="aksi" style="justify-content:flex-end"><button class="btn kecil" data-p="status">${p.selesai ? 'Aktifkan lagi' : 'Selesai'}</button><button class="btn kecil bahaya" data-p="hapus">Hapus</button></div></td></tr>`).join('');
+  $('#dProyekKosong').style.display = PROYEK.length ? 'none' : 'block';
+  const nama = [...new Set(DATA.map(d => d.nama).concat(PROYEK.map(p => p.klien)).filter(Boolean))];
+  $('#dlPelanggan').innerHTML = nama.map(n => `<option value="${esc(n)}">`).join('');
+}
+$('#formProyek').onsubmit = e => {
+  e.preventDefault();
+  const nama = $('#pNama').value.trim();
+  if (!nama) return toast('Isi nama proyek dulu.');
+  PROYEK.unshift({id:Date.now().toString(36), nama, klien:$('#pKlien').value.trim(), tenggat:$('#pTenggat').value, selesai:false});
+  simpanProyek(); e.target.reset(); renderDasbor(); toast('Proyek ditambahkan.');
+};
+$('#dProyek').addEventListener('click', e => {
+  const a = e.target.dataset.p; if (!a) return;
+  const p = PROYEK.find(x => x.id === e.target.closest('tr').dataset.id);
+  if (a === 'status') p.selesai = !p.selesai;
+  else if (confirm(`Hapus proyek "${p.nama}"?`)) PROYEK = PROYEK.filter(x => x !== p);
+  else return;
+  simpanProyek(); renderDasbor();
+});
+
+const klikInvoice = e => {
   const a = e.target.dataset.a; if (!a) return;
   const d = DATA.find(x => x.id === e.target.closest('tr').dataset.id), h = hitung(d);
   if (a === 'cetak') cetak(d);
@@ -575,7 +663,10 @@ $('#tbRiwayat').addEventListener('click', e => {
       `\nTotal: ${rp(h.total)}\nStatus: ${LABEL_KECIL[d.status]}` + (h.sisa > 0 ? `\nSisa tagihan: ${rp(h.sisa)}` + (S.infoBayar ? `\n\nPembayaran:\n${S.infoBayar}` : '') : '') + `\n\nTerima kasih.`;
     window.open(`https://wa.me/${no}?text=${encodeURIComponent(teks)}`, '_blank');
   }
-});
+  renderDasbor();
+};
+$('#tbRiwayat').addEventListener('click', klikInvoice);
+$('#dBelum').addEventListener('click', klikInvoice);
 function unduh(nama, isi, tipe){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([isi], {type:tipe})); a.download = nama; a.click(); URL.revokeObjectURL(a.href); }
 $('#btnCsv').onclick = () => {
   const q = v => '"' + String(v).replace(/"/g, '""') + '"';
@@ -610,7 +701,7 @@ $('#sLogo').onchange = e => {
   img.src = URL.createObjectURL(f);
 };
 $('#btnHapusLogo').onclick = () => { S.logo = ''; $('#sLogo').value = ''; simpanS(); isiAtur(); };
-$('#btnCadang').onclick = () => unduh(`cadangan-invoice-${hariIni()}.json`, JSON.stringify({atur:S, data:DATA}), 'application/json');
+$('#btnCadang').onclick = () => unduh(`cadangan-invoice-${hariIni()}.json`, JSON.stringify({atur:S, data:DATA, proyek:PROYEK}), 'application/json');
 $('#btnPulih').onclick = () => $('#filePulih').click();
 $('#filePulih').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
@@ -619,6 +710,7 @@ $('#filePulih').onchange = async e => {
     if (!j.atur || !Array.isArray(j.data)) throw 0;
     if (!confirm(`Pulihkan ${j.data.length} invoice dari cadangan? Data saat ini (${DATA.length} invoice) akan diganti.`)) return;
     S = Object.assign({}, BAWAAN, j.atur); S.tampil = Object.assign({}, BAWAAN.tampil, S.tampil); DATA = j.data;
+    if (Array.isArray(j.proyek)) { PROYEK = j.proyek; simpanProyek(); }
     simpanS(); simpanData(); draf = drafBaru(); editId = null; isiForm(); isiAtur(); renderRiwayat(); toast('Cadangan dipulihkan.');
   } catch { toast('Berkas cadangan tidak valid.'); }
   e.target.value = '';
@@ -628,6 +720,7 @@ $('#filePulih').onchange = async e => {
 function bukaHal(h){
   $$('nav button').forEach(b => b.classList.toggle('aktif', b.dataset.hal === h));
   $$('.hal').forEach(s => s.classList.toggle('aktif', s.id === 'hal-' + h));
+  if (h === 'dasbor') renderDasbor();
   if (h === 'riwayat') renderRiwayat();
   if (h === 'atur') isiAtur();
   if (h === 'baru') isiForm();
@@ -682,7 +775,7 @@ function tampilGerbang(){
 function bukaKunci(){
   document.body.classList.remove('terkunci'); sesi(true); tutupSandi();
   $('#siapa').textContent = AKUN.nama; $('#aNama').value = AKUN.nama;
-  bukaHal('baru');
+  bukaHal('dasbor');
 }
 $('#formMasuk').onsubmit = async e => {
   e.preventDefault();
@@ -706,7 +799,7 @@ $('#formMasuk').onsubmit = async e => {
 $('#btnLupa').onclick = () => {
   const j = prompt('Password tidak bisa dipulihkan. Satu-satunya jalan adalah mengatur ulang ke akun bawaan, yang MENGHAPUS semua invoice dan pengaturan di browser ini.\n\nBila punya berkas cadangan, data bisa dipulihkan setelah masuk kembali.\n\nKetik HAPUS untuk mengatur ulang:');
   if (j !== 'HAPUS') return;
-  try { ['inv.akun', 'inv.data', 'inv.atur'].forEach(k => localStorage.removeItem(k)); } catch {}
+  try { ['inv.akun', 'inv.data', 'inv.atur', 'inv.proyek'].forEach(k => localStorage.removeItem(k)); } catch {}
   sesi(false); location.reload();
 };
 $('#btnKeluar').onclick = () => { sesi(false); tampilGerbang(); };
