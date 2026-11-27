@@ -647,7 +647,10 @@ $$('.sandi').forEach(w => {
 });
 const tutupSandi = () => $$('.sandi input').forEach(i => { i.value = ''; if (i.type === 'text') i.nextElementSibling.click(); });
 
+// Akun bawaan (password disimpan teracak). Akun yang diubah lewat Pengaturan menggantikannya di browser itu.
+const AKUN_BAWAAN = {nama:'Riyah', garam:'5a1d96d7c5012c4444ca584f224b015a', algo:'pbkdf2', hash:'14fda4f6eb9d37c4fb1d0318714ebcbc39c1c6554b4d0e979be55d3364c478f2'};
 let AKUN = muat('inv.akun', null), gagalMasuk = 0, kunciSampai = 0;
+if (!AKUN || !AKUN.ubahan) AKUN = AKUN_BAWAAN;
 const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 async function acak(sandi, garam, algo){
   if (algo === 'pbkdf2') {
@@ -661,7 +664,7 @@ async function acak(sandi, garam, algo){
 async function buatAkun(nama, sandi){
   const algo = window.crypto && crypto.subtle ? 'pbkdf2' : 'sederhana';
   const garam = hex(crypto.getRandomValues(new Uint8Array(16)));
-  AKUN = {nama, garam, algo, hash: await acak(sandi, garam, algo)};
+  AKUN = {nama, garam, algo, hash: await acak(sandi, garam, algo), ubahan:true};
   tulis('inv.akun', AKUN);
 }
 const cocok = async sandi => (await acak(sandi, AKUN.garam, AKUN.algo)) === AKUN.hash;
@@ -690,6 +693,7 @@ $('#formMasuk').onsubmit = async e => {
     if (sandi !== $('#mUlang').value) return galat('Ulangi password belum sama.');
     await buatAkun(nama, sandi); return bukaKunci();
   }
+  if (AKUN.algo === 'pbkdf2' && !(window.crypto && crypto.subtle)) return galat('Tampilan pratinjau ini tidak bisa memeriksa password. Buka situs di Chrome/Edge.');
   const tunggu = Math.ceil((kunciSampai - Date.now()) / 1000);
   if (tunggu > 0) return galat(`Terlalu banyak percobaan. Coba lagi dalam ${tunggu} detik.`);
   $('#mTombol').disabled = true;
@@ -700,7 +704,7 @@ $('#formMasuk').onsubmit = async e => {
   galat('Username atau password salah.'); $('#mSandi').select();
 };
 $('#btnLupa').onclick = () => {
-  const j = prompt('Password tidak bisa dipulihkan. Satu-satunya jalan adalah mengatur ulang, yang MENGHAPUS akun, semua invoice, dan pengaturan di browser ini.\n\nBila punya berkas cadangan, data bisa dipulihkan setelah membuat akun baru.\n\nKetik HAPUS untuk mengatur ulang:');
+  const j = prompt('Password tidak bisa dipulihkan. Satu-satunya jalan adalah mengatur ulang ke akun bawaan, yang MENGHAPUS semua invoice dan pengaturan di browser ini.\n\nBila punya berkas cadangan, data bisa dipulihkan setelah masuk kembali.\n\nKetik HAPUS untuk mengatur ulang:');
   if (j !== 'HAPUS') return;
   try { ['inv.akun', 'inv.data', 'inv.atur'].forEach(k => localStorage.removeItem(k)); } catch {}
   sesi(false); location.reload();
@@ -712,7 +716,7 @@ $('#btnAkun').onclick = async () => {
   if (!await cocok($('#aLama').value)) return galat('Password saat ini salah.');
   if (baru && baru.length < 6) return galat('Password baru minimal 6 karakter.');
   if (baru !== $('#aUlang').value) return galat('Ulangi password baru belum sama.');
-  if (baru) await buatAkun(nama, baru); else { AKUN.nama = nama; tulis('inv.akun', AKUN); }
+  if (baru) await buatAkun(nama, baru); else { AKUN = Object.assign({}, AKUN, {nama, ubahan:true}); tulis('inv.akun', AKUN); }
   galat(''); tutupSandi(); $('#siapa').textContent = AKUN.nama; toast('Akun admin diperbarui.');
 };
 
