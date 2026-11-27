@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice Pribadi</title>
+<style>
+:root{--aksen:#0f766e;--bg:#f4f5f7;--kartu:#fff;--garis:#e2e5ea;--teks:#1c2330;--redup:#687385;--bahaya:#c0392b;--ok:#15803d;--radius:10px}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;font-size:14px;color:var(--teks);background:var(--bg)}
+header.app{display:flex;align-items:center;gap:20px;padding:10px 20px;background:var(--kartu);border-bottom:1px solid var(--garis);position:sticky;top:0;z-index:5}
+header.app h1{font-size:17px;margin:0;letter-spacing:.2px}
+header.app h1 span{color:var(--aksen)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{border:0;background:none;padding:8px 14px;border-radius:8px;font:inherit;font-weight:600;color:var(--redup);cursor:pointer}
+nav button:hover{background:var(--bg)}
+nav button.aktif{background:var(--aksen);color:#fff}
+main{padding:20px;max-width:1400px;margin:0 auto}
+.hal{display:none}.hal.aktif{display:block}
+.dua{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:980px){.dua{grid-template-columns:1fr}}
+.kartu{background:var(--kartu);border:1px solid var(--garis);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.kartu h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--redup);margin:0 0 12px}
+label{display:block;font-size:12px;font-weight:600;color:var(--redup);margin-bottom:4px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--garis);border-radius:8px;font:inherit;color:inherit;background:#fff}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--aksen);outline-offset:-1px}
+textarea{resize:vertical;min-height:60px}
+.baris{display:grid;gap:10px;margin-bottom:10px}
+.b2{grid-template-columns:1fr 1fr}.b3{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:560px){.b2,.b3{grid-template-columns:1fr}}
+.btn{border:1px solid var(--garis);background:#fff;padding:8px 14px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer;color:var(--teks)}
+.btn:hover{border-color:var(--aksen);color:var(--aksen)}
+.btn.utama{background:var(--aksen);border-color:var(--aksen);color:#fff}
+.btn.utama:hover{filter:brightness(1.08);color:#fff}
+.btn.besar{padding:12px 20px;font-size:15px}
+.btn.kecil{padding:4px 9px;font-size:12px}
+.btn.bahaya:hover{border-color:var(--bahaya);color:var(--bahaya)}
+.aksi{display:flex;gap:8px;flex-wrap:wrap}
+.item-baris{display:grid;grid-template-columns:minmax(0,1fr) 64px 120px 32px;gap:6px;margin-bottom:6px}
+.item-baris button{border:0;background:none;color:var(--redup);font-size:18px;cursor:pointer;border-radius:6px}
+.item-baris button:hover{color:var(--bahaya);background:var(--bg)}
+.ringkas{display:flex;justify-content:space-between;padding:4px 0;color:var(--redup)}
+.ringkas.total{font-size:18px;font-weight:700;color:var(--teks);border-top:1px solid var(--garis);margin-top:6px;padding-top:10px}
+.cek{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--teks);margin-bottom:6px;cursor:pointer}
+.cek input{width:auto}
+.pratinjau{position:sticky;top:70px}
+.pratinjau-wadah{background:#dfe2e7;border-radius:var(--radius);padding:14px;overflow:hidden}
+.petunjuk{font-size:12px;color:var(--redup);margin:6px 0 0}
+table.daftar{width:100%;border-collapse:collapse}
+table.daftar th{text-align:left;font-size:12px;color:var(--redup);text-transform:uppercase;letter-spacing:.4px;padding:8px;border-bottom:1px solid var(--garis)}
+table.daftar td{padding:9px 8px;border-bottom:1px solid var(--garis);vertical-align:middle}
+table.daftar tr:hover td{background:#fafbfc}
+.kanan{text-align:right}
+.lencana{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}
+.lencana.lunas{background:#dcfce7;color:#166534}.lencana.dp{background:#fef3c7;color:#92400e}.lencana.belum{background:#fee2e2;color:#991b1b}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.stat div{background:var(--kartu);border:1px solid var(--garis);border-radius:var(--radius);padding:12px 14px}
+.stat small{color:var(--redup);font-weight:600}.stat b{display:block;font-size:19px;margin-top:2px}
+.kosong{text-align:center;color:var(--redup);padding:40px 10px}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1c2330;color:#fff;padding:10px 18px;border-radius:8px;opacity:0;transition:.25s;pointer-events:none;z-index:20}
+#toast.tampil{opacity:1}
+
+/* ===== Kertas invoice ===== */
+.kertas{--a:var(--aksen);background:#fff;color:#111;font-family:"Segoe UI",Arial,sans-serif;font-size:11pt;line-height:1.4;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.kertas.A4{width:210mm;min-height:297mm;padding:16mm}
+.kertas.A5{width:148mm;min-height:210mm;padding:10mm;font-size:9pt}
+.kertas.T80{width:80mm;padding:4mm;font-size:8.5pt}
+.kertas.T58{width:58mm;padding:3mm;font-size:7.5pt}
+.kertas .kop{display:flex;justify-content:space-between;gap:16px;border-bottom:3px solid var(--a);padding-bottom:10px;margin-bottom:14px}
+.kertas .kop img{max-height:22mm;max-width:40mm;object-fit:contain;margin-right:10px}
+.kertas .usaha{display:flex;align-items:center}
+.kertas .usaha b{font-size:1.45em;display:block}
+.kertas .usaha small,.kertas .info small{color:#555;display:block;white-space:pre-line}
+.kertas .judul{text-align:right}
+.kertas .judul b{font-size:1.9em;color:var(--a);letter-spacing:1px;display:block;line-height:1.1}
+.kertas .info{display:flex;justify-content:space-between;gap:16px;margin-bottom:14px}
+.kertas .info .lbl{font-size:.8em;text-transform:uppercase;letter-spacing:.6px;color:var(--a);font-weight:700}
+.kertas table{width:100%;border-collapse:collapse;margin-bottom:10px}
+.kertas th{background:var(--a);color:#fff;text-align:left;padding:6px 8px;font-size:.88em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.kertas td{padding:6px 8px;border-bottom:1px solid #ddd;vertical-align:top}
+.kertas .r{text-align:right;white-space:nowrap}
+.kertas .bawah{display:flex;justify-content:space-between;gap:16px}
+.kertas .jumlah{min-width:45%;margin-left:auto}
+.kertas .jumlah div{display:flex;justify-content:space-between;gap:12px;padding:3px 8px}
+.kertas .jumlah .tot{font-weight:700;font-size:1.15em;border-top:2px solid var(--a);margin-top:4px;padding-top:6px}
+.kertas .kotak{font-size:.9em;color:#333;white-space:pre-line;margin-top:10px}
+.kertas .kotak b{color:var(--a);display:block;font-size:.88em;text-transform:uppercase;letter-spacing:.5px}
+.kertas .terbilang{font-style:italic;background:#f4f4f4;padding:6px 8px;margin:8px 0;font-size:.92em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.kertas .ttd{margin-top:22px;margin-left:auto;width:55mm;text-align:center}
+.kertas .ttd .ruang{height:20mm}
+.kertas .ttd .nama{border-top:1px solid #333;padding-top:3px;font-weight:600}
+.kertas .cap{display:inline-block;margin:14px 0 0 12px;border:4px solid;padding:2px 16px;font-size:2.2em;font-weight:800;letter-spacing:3px;transform:rotate(-14deg);opacity:.3;border-radius:6px}
+.kertas .cap.lunas{color:#15803d}.kertas .cap.dp{color:#b45309}.kertas .cap.belum{color:#b91c1c}
+.kertas .kaki{text-align:center;color:#666;font-size:.85em;margin-top:18px;white-space:pre-line}
+/* struk termal */
+.kertas.T80 .kop,.kertas.T58 .kop,.kertas.T80 .info,.kertas.T58 .info,.kertas.T80 .bawah,.kertas.T58 .bawah{display:block;text-align:center}
+.kertas.T80 .kop,.kertas.T58 .kop{border-bottom:1px dashed #000}
+.kertas.T80 .usaha,.kertas.T58 .usaha{display:block}
+.kertas.T80 .judul,.kertas.T58 .judul{text-align:center;margin-top:4px}
+.kertas.T80 .judul b,.kertas.T58 .judul b{font-size:1.2em;color:#000}
+.kertas.T80 .info>div,.kertas.T58 .info>div{text-align:left;margin-bottom:4px}
+.kertas.T80 th,.kertas.T58 th{background:none;color:#000;border-bottom:1px dashed #000;padding:3px 2px}
+.kertas.T80 td,.kertas.T58 td{border-bottom:0;padding:2px}
+.kertas.T80 .no,.kertas.T58 .no{display:none}
+.kertas.T80 .jumlah,.kertas.T58 .jumlah{border-top:1px dashed #000;padding-top:4px}
+.kertas.T80 .jumlah div,.kertas.T58 .jumlah div{padding:1px 2px}
+.kertas.T80 .jumlah .tot,.kertas.T58 .jumlah .tot{border-top:1px dashed #000}
+.kertas.T80 .kotak,.kertas.T58 .kotak{text-align:left}
+.kertas.T80 .cap,.kertas.T58 .cap{transform:none;opacity:1;font-size:1.2em;border-width:2px;margin:6px 0;color:#000!important}
+.kertas.T80 .ttd,.kertas.T58 .ttd{display:none}
+.kertas.T80 .terbilang,.kertas.T58 .terbilang{background:none;padding:2px;text-align:left}
+
+#cetak{display:none}
+@media print{
+  body{background:#fff}
+  body>*:not(#cetak){display:none!important}
+  #cetak{display:block}
+  .kertas{box-shadow:none;margin:0;zoom:1!important}
+}
+</style>
+<style id="gayaHalaman"></style>
+</head>
+<body>
+<header class="app">
+  <h1>Invoice <span>Pribadi</span></h1>
+  <nav>
+    <button data-hal="baru" class="aktif">+ Pembayaran Baru</button>
+    <button data-hal="riwayat">Riwayat</button>
+    <button data-hal="atur">Pengaturan</button>
+  </nav>
+</header>
+
+<div id="peringatan" hidden style="background:#fef3c7;color:#92400e;padding:10px 20px;font-weight:600">Tampilan ini hanya pratinjau: data tidak tersimpan permanen dan cetak mungkin tidak jalan. Buka lewat berkas "Buka Invoice.bat" (atau klik dua kali index.html) di Chrome/Edge.</div>
+<main>
+<!-- ================= PEMBAYARAN BARU ================= -->
+<section class="hal aktif" id="hal-baru">
+ <div class="dua">
+  <div>
+   <div class="kartu">
+    <h2 id="judulForm">Catat Pembayaran</h2>
+    <div class="baris b2">
+      <div><label>Nama pelanggan</label><input id="fNama" list="dlPelanggan" placeholder="Nama pembayar" autocomplete="off"></div>
+      <div><label>No. WhatsApp / kontak</label><input id="fKontak" placeholder="08xxxxxxxxxx"></div>
+    </div>
+    <div class="baris"><div><label>Alamat (opsional)</label><input id="fAlamat"></div></div>
+    <div class="baris b3">
+      <div><label>Tanggal</label><input type="date" id="fTanggal"></div>
+      <div><label>Jatuh tempo (opsional)</label><input type="date" id="fTempo"></div>
+      <div><label>No. invoice</label><input id="fNomor" placeholder="otomatis"></div>
+    </div>
+   </div>
+
+   <div class="kartu">
+    <h2>Barang / Jasa</h2>
+    <div class="item-baris" style="margin-bottom:2px"><label>Nama</label><label>Jml</label><label>Harga satuan</label><span></span></div>
+    <div id="itemList"></div>
+    <button class="btn kecil" id="btnTambahItem">+ Tambah baris</button>
+    <datalist id="dlKatalog"></datalist><datalist id="dlPelanggan"></datalist>
+   </div>
+
+   <div class="kartu">
+    <h2>Pembayaran</h2>
+    <div class="baris b3">
+      <div><label>Diskon (Rp)</label><input id="fDiskon" inputmode="numeric" value="0"></div>
+      <div><label>Pajak (%)</label><input id="fPajak" inputmode="decimal" value="0"></div>
+      <div><label>Metode bayar</label><select id="fMetode"></select></div>
+    </div>
+    <div class="baris b2">
+      <div><label>Status</label><select id="fStatus"><option value="lunas">Lunas</option><option value="dp">DP / Sebagian</option><option value="belum">Belum dibayar</option></select></div>
+      <div id="wadahDibayar"><label>Jumlah dibayar (Rp)</label><input id="fDibayar" inputmode="numeric" value="0"></div>
+    </div>
+    <div class="baris"><div><label>Catatan untuk invoice ini (opsional)</label><input id="fCatatan"></div></div>
+    <div class="ringkas"><span>Subtotal</span><span id="rSub">Rp 0</span></div>
+    <div class="ringkas total"><span>Total</span><span id="rTotal">Rp 0</span></div>
+    <div class="ringkas" id="rSisaBaris"><span>Sisa tagihan</span><span id="rSisa">Rp 0</span></div>
+   </div>
+
+   <div class="aksi">
+     <button class="btn utama besar" id="btnSimpanCetak">Simpan &amp; Cetak Invoice</button>
+     <button class="btn besar" id="btnSimpan">Simpan saja</button>
+     <button class="btn besar" id="btnBersih">Kosongkan</button>
+   </div>
+   <p class="petunjuk">Pintasan: <b>Ctrl + Enter</b> = simpan &amp; langsung cetak.</p>
+  </div>
+
+  <div class="pratinjau">
+    <div class="pratinjau-wadah"><div id="pvBaru"></div></div>
+    <p class="petunjuk">Pratinjau langsung — tampilan ini yang akan tercetak.</p>
+  </div>
+ </div>
+</section>
+
+<!-- ================= RIWAYAT ================= -->
+<section class="hal" id="hal-riwayat">
+  <div class="stat" id="stat"></div>
+  <div class="kartu">
+    <div class="baris b3" style="align-items:end">
+      <div><label>Cari</label><input id="cari" placeholder="Nama pelanggan / nomor invoice"></div>
+      <div><label>Status</label><select id="saringStatus"><option value="">Semua</option><option value="lunas">Lunas</option><option value="dp">DP / Sebagian</option><option value="belum">Belum dibayar</option></select></div>
+      <div class="aksi"><button class="btn" id="btnCsv">Unduh Excel (CSV)</button></div>
+    </div>
+    <div style="overflow-x:auto"><table class="daftar"><thead><tr><th>No. Invoice</th><th>Tanggal</th><th>Pelanggan</th><th class="kanan">Total</th><th>Status</th><th></th></tr></thead><tbody id="tbRiwayat"></tbody></table></div>
+    <div class="kosong" id="riwayatKosong">Belum ada invoice. Catat pembayaran pertama di tab <b>Pembayaran Baru</b>.</div>
+  </div>
+</section>
+
+<!-- ================= PENGATURAN ================= -->
+<section class="hal" id="hal-atur">
+ <div class="dua">
+  <div>
+   <div class="kartu">
+    <h2>Identitas Usaha</h2>
+    <div class="baris b2">
+      <div><label>Nama usaha / nama Anda</label><input data-s="nama"></div>
+      <div><label>Slogan / keterangan</label><input data-s="slogan"></div>
+    </div>
+    <div class="baris"><div><label>Alamat</label><textarea data-s="alamat"></textarea></div></div>
+    <div class="baris b2">
+      <div><label>Telepon / WA</label><input data-s="telp"></div>
+      <div><label>Email / situs</label><input data-s="email"></div>
+    </div>
+    <div class="baris b2">
+      <div><label>Logo</label><input type="file" id="sLogo" accept="image/*"></div>
+      <div style="align-self:end"><button class="btn kecil bahaya" id="btnHapusLogo">Hapus logo</button></div>
+    </div>
+   </div>
+
+   <div class="kartu">
+    <h2>Tampilan Invoice</h2>
+    <div class="baris b3">
+      <div><label>Judul dokumen</label><input data-s="judul" placeholder="INVOICE"></div>
+      <div><label>Warna utama</label><input type="color" data-s="warna" style="height:36px;padding:2px"></div>
+      <div><label>Ukuran kertas</label><select data-s="kertas"><option value="A4">A4</option><option value="A5">A5</option><option value="T80">Struk termal 80 mm</option><option value="T58">Struk termal 58 mm</option></select></div>
+    </div>
+    <label>Bagian yang ditampilkan</label>
+    <div class="baris b2" style="gap:0 10px">
+      <label class="cek"><input type="checkbox" data-t="logo">Logo</label>
+      <label class="cek"><input type="checkbox" data-t="cap">Cap status (LUNAS / DP)</label>
+      <label class="cek"><input type="checkbox" data-t="terbilang">Terbilang</label>
+      <label class="cek"><input type="checkbox" data-t="infoBayar">Info pembayaran / rekening</label>
+      <label class="cek"><input type="checkbox" data-t="ttd">Tanda tangan</label>
+      <label class="cek"><input type="checkbox" data-t="tempo">Jatuh tempo</label>
+      <label class="cek"><input type="checkbox" data-t="metode">Metode bayar</label>
+      <label class="cek"><input type="checkbox" data-t="kaki">Catatan kaki</label>
+    </div>
+   </div>
+
+   <div class="kartu">
+    <h2>Isi Tetap</h2>
+    <div class="baris"><div><label>Info pembayaran (rekening, QRIS, dsb.)</label><textarea data-s="infoBayar" placeholder="BCA 1234567890 a.n. Nama Anda"></textarea></div></div>
+    <div class="baris"><div><label>Catatan kaki</label><textarea data-s="kaki"></textarea></div></div>
+    <div class="baris b2">
+      <div><label>Nama penanda tangan</label><input data-s="ttdNama"></div>
+      <div><label>Jabatan / keterangan</label><input data-s="ttdJabatan"></div>
+    </div>
+   </div>
+
+   <div class="kartu">
+    <h2>Penomoran &amp; Bawaan</h2>
+    <div class="baris b3">
+      <div><label>Format nomor</label><input data-s="format"></div>
+      <div><label>Nomor urut berikutnya</label><input type="number" min="1" data-s="urut"></div>
+      <div><label>Pajak bawaan (%)</label><input type="number" min="0" step="0.1" data-s="pajak"></div>
+    </div>
+    <p class="petunjuk" style="margin:-4px 0 10px">Kode format: <b>{YYYY}</b> tahun, <b>{MM}</b> bulan, <b>{DD}</b> tanggal, <b>{NNN}</b> nomor urut (jumlah N = jumlah digit). Contoh: INV/{YYYY}{MM}/{NNN}</p>
+    <div class="baris"><div><label>Metode bayar (pisahkan dengan koma)</label><input data-s="metode"></div></div>
+    <div class="baris"><div><label>Daftar barang/jasa langganan — satu per baris: <b>Nama | Harga</b></label><textarea data-s="katalog" style="min-height:90px" placeholder="Jasa desain logo | 250000&#10;Cetak banner 1x1 m | 35000"></textarea></div></div>
+    <label class="cek"><input type="checkbox" data-s="autoCetak">Langsung buka dialog cetak setelah pembayaran disimpan</label>
+   </div>
+
+   <div class="kartu">
+    <h2>Cadangan Data</h2>
+    <p class="petunjuk" style="margin:0 0 10px">Data tersimpan di browser komputer ini. Unduh cadangan secara berkala agar tidak hilang.</p>
+    <div class="aksi">
+      <button class="btn" id="btnCadang">Unduh cadangan</button>
+      <button class="btn" id="btnPulih">Pulihkan dari cadangan</button>
+      <input type="file" id="filePulih" accept=".json" hidden>
+    </div>
+   </div>
+  </div>
+
+  <div class="pratinjau">
+    <div class="pratinjau-wadah"><div id="pvAtur"></div></div>
+    <p class="petunjuk">Contoh invoice dengan pengaturan saat ini. Perubahan tersimpan otomatis.</p>
+  </div>
+ </div>
+</section>
+</main>
+
+<div id="cetak"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const angka = v => { const n = parseFloat(String(v ?? '').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.')); return isFinite(n) ? n : 0; };
+const rp = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+const hariIni = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const tgl = s => s ? new Date(s + 'T00:00').toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'}) : '';
+const LABEL = {lunas:'LUNAS', dp:'DP', belum:'BELUM LUNAS'}, LABEL_KECIL = {lunas:'Lunas', dp:'DP / Sebagian', belum:'Belum dibayar'};
+
+function terbilang(n){
+  n = Math.round(Math.abs(n));
+  const s = ['','satu','dua','tiga','empat','lima','enam','tujuh','delapan','sembilan','sepuluh','sebelas'];
+  const f = x => x < 12 ? s[x]
+    : x < 20 ? f(x-10) + ' belas'
+    : x < 100 ? f(Math.floor(x/10)) + ' puluh ' + f(x%10)
+    : x < 200 ? 'seratus ' + f(x-100)
+    : x < 1e3 ? f(Math.floor(x/100)) + ' ratus ' + f(x%100)
+    : x < 2e3 ? 'seribu ' + f(x-1e3)
+    : x < 1e6 ? f(Math.floor(x/1e3)) + ' ribu ' + f(x%1e3)
+    : x < 1e9 ? f(Math.floor(x/1e6)) + ' juta ' + f(x%1e6)
+    : x < 1e12 ? f(Math.floor(x/1e9)) + ' miliar ' + f(x%1e9)
+    : f(Math.floor(x/1e12)) + ' triliun ' + f(x%1e12);
+  const t = n === 0 ? 'nol' : f(n).replace(/\s+/g,' ').trim();
+  return t.charAt(0).toUpperCase() + t.slice(1) + ' rupiah';
+}
+
+/* ---------- Penyimpanan ---------- */
+const BAWAAN = {
+  nama:'Nama Usaha Anda', slogan:'', alamat:'', telp:'', email:'', logo:'',
+  judul:'INVOICE', warna:'#0f766e', kertas:'A4',
+  tampil:{logo:true, cap:true, terbilang:true, infoBayar:true, ttd:true, tempo:true, metode:true, kaki:true},
+  infoBayar:'', kaki:'Terima kasih atas kepercayaan Anda.', ttdNama:'', ttdJabatan:'',
+  format:'INV/{YYYY}{MM}/{NNN}', urut:1, pajak:0, metode:'Tunai, Transfer Bank, QRIS, E-Wallet', katalog:'', autoCetak:true
+};
+const muat = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+let S = Object.assign({}, BAWAAN, muat('inv.atur', {}));
+S.tampil = Object.assign({}, BAWAAN.tampil, S.tampil);
+let DATA = muat('inv.data', []);
+let BISA_SIMPAN = true;
+try { localStorage.setItem('inv.uji', '1'); localStorage.removeItem('inv.uji'); } catch { BISA_SIMPAN = false; }
+const tulis = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { BISA_SIMPAN = false; $('#peringatan').hidden = false; } };
+const simpanS = () => tulis('inv.atur', S);
+const simpanData = () => tulis('inv.data', DATA);
+
+function toast(t){ const el = $('#toast'); el.textContent = t; el.classList.add('tampil'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('tampil'), 2200); }
+const katalog = () => S.katalog.split('\n').map(b => { const [n, h] = b.split('|'); return {nama:(n||'').trim(), harga:angka(h)}; }).filter(k => k.nama);
+function nomorDari(urut, tanggal){
+  const [y, m, d] = (tanggal || hariIni()).split('-');
+  return S.format.replace(/\{YYYY\}/g, y).replace(/\{YY\}/g, y.slice(2)).replace(/\{MM\}/g, m).replace(/\{DD\}/g, d)
+    .replace(/\{(N+)\}/g, (_, n) => String(urut).padStart(n.length, '0'));
+}
+
+/* ---------- Hitung & render invoice ---------- */
+function hitung(inv){
+  const sub = inv.items.reduce((t, i) => t + i.qty * i.harga, 0);
+  const dasar = Math.max(0, sub - inv.diskon);
+  const pajak = dasar * inv.pajak / 100;
+  const total = dasar + pajak;
+  const dibayar = inv.status === 'lunas' ? total : inv.status === 'belum' ? 0 : Math.min(inv.dibayar, total);
+  return {sub, pajak, total, dibayar, sisa: total - dibayar};
+}
+function invoiceHTML(inv){
+  const h = hitung(inv), T = S.tampil;
+  const baris = inv.items.filter(i => i.nama || i.harga).map((i, n) =>
+    `<tr><td class="no">${n+1}</td><td>${esc(i.nama)}</td><td class="r">${i.qty.toLocaleString('id-ID')}</td><td class="r">${rp(i.harga)}</td><td class="r">${rp(i.qty*i.harga)}</td></tr>`).join('')
+    || '<tr><td colspan="5" style="text-align:center;color:#999">— belum ada barang/jasa —</td></tr>';
+  return `<div class="kertas ${S.kertas}" style="--a:${esc(S.warna)}">
+
+    <div class="kop">
+      <div class="usaha">${T.logo && S.logo ? `<img src="${S.logo}" alt="">` : ''}<div><b>${esc(S.nama)}</b><small>${esc([S.slogan, S.alamat, [S.telp, S.email].filter(Boolean).join(' · ')].filter(Boolean).join('\n'))}</small></div></div>
+      <div class="judul"><b>${esc(S.judul || 'INVOICE')}</b><span>${esc(inv.nomor)}</span></div>
+    </div>
+    <div class="info">
+      <div><div class="lbl">Kepada</div><b>${esc(inv.nama || '—')}</b><small>${esc([inv.alamat, inv.kontak].filter(Boolean).join('\n'))}</small></div>
+      <div><div class="lbl">Tanggal</div>${tgl(inv.tanggal)}
+        ${T.tempo && inv.tempo ? `<div class="lbl" style="margin-top:4px">Jatuh tempo</div>${tgl(inv.tempo)}` : ''}
+        ${T.metode && inv.status !== 'belum' ? `<div class="lbl" style="margin-top:4px">Metode bayar</div>${esc(inv.metode)}` : ''}</div>
+    </div>
+    <table><thead><tr><th class="no">No</th><th>Keterangan</th><th class="r">Jml</th><th class="r">Harga</th><th class="r">Jumlah</th></tr></thead><tbody>${baris}</tbody></table>
+    <div class="bawah">
+      <div>${T.infoBayar && S.infoBayar && h.sisa > 0 ? `<div class="kotak"><b>Pembayaran</b>${esc(S.infoBayar)}</div>` : ''}
+           ${inv.catatan ? `<div class="kotak"><b>Catatan</b>${esc(inv.catatan)}</div>` : ''}
+           ${T.cap ? `<div class="cap ${inv.status}">${LABEL[inv.status]}</div>` : ''}</div>
+      <div class="jumlah">
+        <div><span>Subtotal</span><span>${rp(h.sub)}</span></div>
+        ${inv.diskon ? `<div><span>Diskon</span><span>− ${rp(inv.diskon)}</span></div>` : ''}
+        ${inv.pajak ? `<div><span>Pajak ${inv.pajak}%</span><span>${rp(h.pajak)}</span></div>` : ''}
+        <div class="tot"><span>Total</span><span>${rp(h.total)}</span></div>
+        ${inv.status !== 'lunas' ? `<div><span>Dibayar</span><span>${rp(h.dibayar)}</span></div><div><b>Sisa tagihan</b><b>${rp(h.sisa)}</b></div>` : ''}
+      </div>
+    </div>
+    ${T.terbilang ? `<div class="terbilang">Terbilang: ${esc(terbilang(h.total))}</div>` : ''}
+    ${T.ttd ? `<div class="ttd"><div>Hormat kami,</div><div class="ruang"></div><div class="nama">${esc(S.ttdNama || S.nama)}</div><div>${esc(S.ttdJabatan)}</div></div>` : ''}
+    ${T.kaki && S.kaki ? `<div class="kaki">${esc(S.kaki)}</div>` : ''}
+  </div>`;
+}
+function pasangPratinjau(wadah, inv){
+  wadah.innerHTML = invoiceHTML(inv);
+  const k = wadah.firstElementChild;
+  k.style.zoom = 1;
+  const lebar = wadah.clientWidth;
+  if (lebar && k.offsetWidth > lebar) k.style.zoom = lebar / k.offsetWidth; else k.style.margin = '0 auto';
+}
+function cetak(inv){
+  const uk = {A4:'A4', A5:'A5', T80:'80mm 297mm', T58:'58mm 297mm'}[S.kertas];
+  $('#gayaHalaman').textContent = `@page{size:${uk};margin:0}`;
+  $('#cetak').innerHTML = invoiceHTML(inv);
+  const judulLama = document.title;
+  document.title = `${inv.nomor} - ${inv.nama || 'Invoice'}`.replace(/[\\/:*?"<>|]/g, '-');
+  const gambar = $('#cetak img');
+  const jalan = () => { window.print(); document.title = judulLama; };
+  if (gambar && !gambar.complete) gambar.onload = jalan; else setTimeout(jalan, 50);
+}
+
+/* ---------- Form pembayaran ---------- */
+let draf, editId = null;
+const drafBaru = () => ({id:null, nomor:'', nama:'', kontak:'', alamat:'', tanggal:hariIni(), tempo:'', items:[{nama:'', qty:1, harga:0}], diskon:0, pajak:S.pajak, metode:S.metode.split(',')[0].trim(), status:'lunas', dibayar:0, catatan:''});
+
+function isiForm(){
+  $('#fNama').value = draf.nama; $('#fKontak').value = draf.kontak; $('#fAlamat').value = draf.alamat;
+  $('#fTanggal').value = draf.tanggal; $('#fTempo').value = draf.tempo; $('#fNomor').value = editId ? draf.nomor : '';
+  $('#fDiskon').value = draf.diskon; $('#fPajak').value = draf.pajak; $('#fCatatan').value = draf.catatan;
+  const metode = S.metode.split(',').map(m => m.trim()).filter(Boolean);
+  if (draf.metode && !metode.includes(draf.metode)) metode.push(draf.metode);
+  $('#fMetode').innerHTML = metode.map(m => `<option>${esc(m)}</option>`).join(''); $('#fMetode').value = draf.metode;
+  $('#fStatus').value = draf.status; $('#fDibayar').value = draf.dibayar;
+  $('#judulForm').textContent = editId ? 'Ubah Invoice ' + draf.nomor : 'Catat Pembayaran';
+  $('#dlKatalog').innerHTML = katalog().map(k => `<option value="${esc(k.nama)}">${rp(k.harga)}</option>`).join('');
+  const plg = [...new Map(DATA.filter(d => d.nama).map(d => [d.nama, d])).values()];
+  $('#dlPelanggan').innerHTML = plg.map(p => `<option value="${esc(p.nama)}">`).join('');
+  renderItem(); segarkan();
+}
+function renderItem(){
+  $('#itemList').innerHTML = draf.items.map((i, n) => `<div class="item-baris" data-n="${n}">
+    <input data-k="nama" list="dlKatalog" value="${esc(i.nama)}" placeholder="Nama barang / jasa" autocomplete="off">
+    <input data-k="qty" inputmode="decimal" value="${i.qty}">
+    <input data-k="harga" inputmode="numeric" value="${i.harga || ''}" placeholder="0">
+    <button title="Hapus baris" tabindex="-1">×</button></div>`).join('');
+}
+function bacaForm(){
+  Object.assign(draf, {nama:$('#fNama').value.trim(), kontak:$('#fKontak').value.trim(), alamat:$('#fAlamat').value.trim(),
+    tanggal:$('#fTanggal').value || hariIni(), tempo:$('#fTempo').value, diskon:angka($('#fDiskon').value), pajak:angka($('#fPajak').value),
+    metode:$('#fMetode').value, status:$('#fStatus').value, dibayar:angka($('#fDibayar').value), catatan:$('#fCatatan').value.trim()});
+}
+function segarkan(){
+  bacaForm();
+  $('#wadahDibayar').style.visibility = draf.status === 'dp' ? 'visible' : 'hidden';
+  const h = hitung(draf);
+  $('#rSub').textContent = rp(h.sub); $('#rTotal').textContent = rp(h.total);
+  $('#rSisaBaris').style.display = draf.status === 'lunas' ? 'none' : 'flex'; $('#rSisa').textContent = rp(h.sisa);
+  const nomor = $('#fNomor').value.trim() || (editId ? draf.nomor : nomorDari(S.urut, draf.tanggal));
+  pasangPratinjau($('#pvBaru'), Object.assign({}, draf, {nomor}));
+}
+$('#hal-baru').addEventListener('input', e => {
+  const brs = e.target.closest('.item-baris[data-n]');
+  if (brs) {
+    const it = draf.items[+brs.dataset.n], k = e.target.dataset.k;
+    if (k === 'nama') {
+      it.nama = e.target.value;
+      const cocok = katalog().find(c => c.nama === it.nama);
+      if (cocok) { it.harga = cocok.harga; brs.querySelector('[data-k=harga]').value = cocok.harga; }
+    } else it[k] = angka(e.target.value);
+  }
+  if (e.target.id === 'fNama') {
+    const lama = DATA.find(d => d.nama === e.target.value);
+    if (lama) { if (!$('#fKontak').value) $('#fKontak').value = lama.kontak; if (!$('#fAlamat').value) $('#fAlamat').value = lama.alamat; }
+  }
+  segarkan();
+});
+$('#itemList').addEventListener('click', e => {
+  if (e.target.tagName !== 'BUTTON') return;
+  draf.items.splice(+e.target.parentElement.dataset.n, 1);
+  if (!draf.items.length) draf.items.push({nama:'', qty:1, harga:0});
+  renderItem(); segarkan();
+});
+$('#btnTambahItem').onclick = () => { draf.items.push({nama:'', qty:1, harga:0}); renderItem(); $('#itemList').lastElementChild.querySelector('input').focus(); };
+$('#itemList').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.ctrlKey && e.target.dataset.k === 'harga' && e.target.closest('.item-baris') === $('#itemList').lastElementChild) $('#btnTambahItem').click();
+});
+
+function simpan(lalucetak){
+  segarkan();
+  draf.items = draf.items.filter(i => i.nama || i.harga);
+  if (!draf.items.length) { draf.items = [{nama:'', qty:1, harga:0}]; renderItem(); return toast('Isi minimal satu barang/jasa dulu.'); }
+  const manual = $('#fNomor').value.trim();
+  if (editId) {
+    draf.nomor = manual || draf.nomor;
+    DATA[DATA.findIndex(d => d.id === editId)] = draf;
+  } else {
+    draf.id = Date.now().toString(36);
+    draf.nomor = manual || nomorDari(S.urut, draf.tanggal);
+    if (!manual) { S.urut = +S.urut + 1; simpanS(); }
+    DATA.unshift(draf);
+  }
+  simpanData();
+  const jadi = draf;
+  toast('Invoice ' + jadi.nomor + ' tersimpan.');
+  editId = null; draf = drafBaru(); isiForm(); isiAtur();
+  if (lalucetak) cetak(jadi);
+}
+$('#btnSimpanCetak').onclick = () => simpan(true);
+$('#btnSimpan').onclick = () => simpan(false);
+$('#btnBersih').onclick = () => { editId = null; draf = drafBaru(); isiForm(); };
+document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter' && $('#hal-baru').classList.contains('aktif')) simpan(true); });
+
+/* ---------- Riwayat ---------- */
+function renderRiwayat(){
+  const q = $('#cari').value.toLowerCase(), st = $('#saringStatus').value;
+  const list = DATA.filter(d => (!st || d.status === st) && (d.nama + ' ' + d.nomor).toLowerCase().includes(q));
+  $('#tbRiwayat').innerHTML = list.map(d => { const h = hitung(d); return `<tr data-id="${d.id}">
+    <td><b>${esc(d.nomor)}</b></td><td>${tgl(d.tanggal)}</td><td>${esc(d.nama || '—')}</td>
+    <td class="kanan">${rp(h.total)}${h.sisa > 0 ? `<br><small style="color:var(--bahaya)">sisa ${rp(h.sisa)}</small>` : ''}</td>
+    <td><span class="lencana ${d.status}">${LABEL_KECIL[d.status]}</span></td>
+    <td><div class="aksi" style="justify-content:flex-end">
+      <button class="btn kecil utama" data-a="cetak">Cetak</button>
+      ${d.status !== 'lunas' ? '<button class="btn kecil" data-a="lunas">Tandai lunas</button>' : ''}
+      ${d.kontak ? '<button class="btn kecil" data-a="wa">WA</button>' : ''}
+      <button class="btn kecil" data-a="ubah">Ubah</button>
+      <button class="btn kecil bahaya" data-a="hapus">Hapus</button></div></td></tr>`; }).join('');
+  $('#riwayatKosong').style.display = list.length ? 'none' : 'block';
+  const bln = hariIni().slice(0, 7);
+  let masuk = 0, masukBln = 0, piutang = 0;
+  DATA.forEach(d => { const h = hitung(d); masuk += h.dibayar; piutang += h.sisa; if (d.tanggal.startsWith(bln)) masukBln += h.dibayar; });
+  $('#stat').innerHTML = `<div><small>Jumlah invoice</small><b>${DATA.length}</b></div><div><small>Diterima bulan ini</small><b>${rp(masukBln)}</b></div>
+    <div><small>Total diterima</small><b>${rp(masuk)}</b></div><div><small>Belum tertagih</small><b style="color:${piutang ? 'var(--bahaya)' : 'inherit'}">${rp(piutang)}</b></div>`;
+}
+$('#cari').oninput = $('#saringStatus').onchange = renderRiwayat;
+$('#tbRiwayat').addEventListener('click', e => {
+  const a = e.target.dataset.a; if (!a) return;
+  const d = DATA.find(x => x.id === e.target.closest('tr').dataset.id), h = hitung(d);
+  if (a === 'cetak') cetak(d);
+  if (a === 'lunas') { d.status = 'lunas'; simpanData(); renderRiwayat(); toast('Ditandai lunas.'); if (S.autoCetak) cetak(d); }
+  if (a === 'ubah') { editId = d.id; draf = JSON.parse(JSON.stringify(d)); isiForm(); bukaHal('baru'); }
+  if (a === 'hapus' && confirm(`Hapus invoice ${d.nomor}? Tindakan ini tidak bisa dibatalkan.`)) { DATA = DATA.filter(x => x !== d); simpanData(); renderRiwayat(); }
+  if (a === 'wa') {
+    let no = d.kontak.replace(/\D/g, ''); if (no.startsWith('0')) no = '62' + no.slice(1);
+    const teks = `Halo ${d.nama},\nBerikut rincian ${S.judul || 'INVOICE'} ${d.nomor} dari ${S.nama}:\n` +
+      d.items.map(i => `• ${i.nama} (${i.qty} × ${rp(i.harga)})`).join('\n') +
+      `\nTotal: ${rp(h.total)}\nStatus: ${LABEL_KECIL[d.status]}` + (h.sisa > 0 ? `\nSisa tagihan: ${rp(h.sisa)}` + (S.infoBayar ? `\n\nPembayaran:\n${S.infoBayar}` : '') : '') + `\n\nTerima kasih.`;
+    window.open(`https://wa.me/${no}?text=${encodeURIComponent(teks)}`, '_blank');
+  }
+});
+function unduh(nama, isi, tipe){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([isi], {type:tipe})); a.download = nama; a.click(); URL.revokeObjectURL(a.href); }
+$('#btnCsv').onclick = () => {
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const brs = [['No Invoice','Tanggal','Pelanggan','Kontak','Rincian','Total','Dibayar','Sisa','Status','Metode']].concat(DATA.map(d => { const h = hitung(d);
+    return [d.nomor, d.tanggal, d.nama, d.kontak, d.items.map(i => `${i.nama} x${i.qty}`).join('; '), Math.round(h.total), Math.round(h.dibayar), Math.round(h.sisa), LABEL_KECIL[d.status], d.metode]; }));
+  unduh(`invoice-${hariIni()}.csv`, '﻿sep=;\n' + brs.map(b => b.map(q).join(';')).join('\n'), 'text/csv');
+};
+
+/* ---------- Pengaturan ---------- */
+const CONTOH = () => ({nomor:nomorDari(S.urut), nama:'Budi Santoso', kontak:'0812-3456-7890', alamat:'Jl. Merdeka No. 10', tanggal:hariIni(), tempo:hariIni(),
+  items:[{nama:'Contoh jasa / barang A', qty:2, harga:150000}, {nama:'Contoh jasa / barang B', qty:1, harga:75000}], diskon:25000, pajak:+S.pajak || 0, metode:S.metode.split(',')[0].trim(), status:'dp', dibayar:200000, catatan:''});
+function isiAtur(){
+  $$('[data-s]').forEach(el => el.type === 'checkbox' ? el.checked = !!S[el.dataset.s] : el.value = S[el.dataset.s]);
+  $$('[data-t]').forEach(el => el.checked = !!S.tampil[el.dataset.t]);
+  if ($('#hal-atur').classList.contains('aktif')) pasangPratinjau($('#pvAtur'), CONTOH());
+}
+$('#hal-atur').addEventListener('input', e => {
+  const el = e.target;
+  if (el.dataset.s) S[el.dataset.s] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? (+el.value || (el.dataset.s === 'urut' ? 1 : 0)) : el.value;
+  else if (el.dataset.t) S.tampil[el.dataset.t] = el.checked;
+  else return;
+  simpanS(); pasangPratinjau($('#pvAtur'), CONTOH());
+});
+$('#sLogo').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => { // perkecil agar hemat penyimpanan
+    const sk = Math.min(1, 400 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = img.width * sk; c.height = img.height * sk; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    S.logo = c.toDataURL('image/png'); simpanS(); isiAtur(); URL.revokeObjectURL(img.src); toast('Logo terpasang.');
+  };
+  img.src = URL.createObjectURL(f);
+};
+$('#btnHapusLogo').onclick = () => { S.logo = ''; $('#sLogo').value = ''; simpanS(); isiAtur(); };
+$('#btnCadang').onclick = () => unduh(`cadangan-invoice-${hariIni()}.json`, JSON.stringify({atur:S, data:DATA}), 'application/json');
+$('#btnPulih').onclick = () => $('#filePulih').click();
+$('#filePulih').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (!j.atur || !Array.isArray(j.data)) throw 0;
+    if (!confirm(`Pulihkan ${j.data.length} invoice dari cadangan? Data saat ini (${DATA.length} invoice) akan diganti.`)) return;
+    S = Object.assign({}, BAWAAN, j.atur); S.tampil = Object.assign({}, BAWAAN.tampil, S.tampil); DATA = j.data;
+    simpanS(); simpanData(); draf = drafBaru(); editId = null; isiForm(); isiAtur(); renderRiwayat(); toast('Cadangan dipulihkan.');
+  } catch { toast('Berkas cadangan tidak valid.'); }
+  e.target.value = '';
+};
+
+/* ---------- Navigasi ---------- */
+function bukaHal(h){
+  $$('nav button').forEach(b => b.classList.toggle('aktif', b.dataset.hal === h));
+  $$('.hal').forEach(s => s.classList.toggle('aktif', s.id === 'hal-' + h));
+  if (h === 'riwayat') renderRiwayat();
+  if (h === 'atur') isiAtur();
+  if (h === 'baru') isiForm();
+}
+$$('nav button').forEach(b => b.onclick = () => bukaHal(b.dataset.hal));
+window.addEventListener('resize', () => { if ($('#hal-baru').classList.contains('aktif')) segarkan(); else if ($('#hal-atur').classList.contains('aktif')) isiAtur(); });
+
+if (!BISA_SIMPAN) $('#peringatan').hidden = false;
+draf = drafBaru(); isiAtur(); isiForm();
+</script>
+</body>
+</html>
